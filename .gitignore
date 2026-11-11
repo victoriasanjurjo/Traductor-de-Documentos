@@ -1,0 +1,23 @@
+# Rust / Cargo / Tauri build artifacts
+/src-tauri/target/
+**/target/
+**/*.rs.bk
+
+# Node / Frontend
+node_modules/
+dist/
+
+# Certificados privados de firma MSIX y carpeta temporal de layout (no subir claves privadas al repositorio remoto)
+packaging/msix/*.pfx
+packaging/msix/layout/
+
+# Modelos neuronales pesados descargados en caché
+models_cache/
+*.onnx
+*.safetensors
+*.ot
+
+# Archivos temporales de sistema
+.DS_Store
+Thumbs.db
+*.log

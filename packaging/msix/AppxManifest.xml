@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="VictoriaSanjurjo.TraducirTextosInglesAEspanol"
+    Publisher="CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Traducir textos inglés a español</DisplayName>
+    <PublisherDisplayName>Victoria Sanjurjo</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Traducir textos inglés a español (v1.0.0). Aplicación nativa en Rust + Tauri v2 para traducir textos de Inglés a Español (hasta 20.000 caracteres) de forma 100% offline.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="es-ES" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="TraducirTextosEnEs"
+      Executable="traducir-textos-ingles-a-espanol.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Traducir textos inglés a español"
+        Description="Traduce textos de Inglés a Español de hasta 20.000 caracteres de forma 100% offline."
+        BackgroundColor="#1E3A8A"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
