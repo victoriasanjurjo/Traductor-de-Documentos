@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Traducir textos ingles a espanol",
+  "productName": "Traductor de Documentos - Ingles a Espanol",
   "version": "1.0.0",
-  "identifier": "com.victoriasanjurjo.traducirtextosenes",
+  "identifier": "com.victoriasanjurjo.traductordocumentosenes",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,11 +10,11 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Traducir textos inglés a español (v1.0.0)",
-        "width": 1200,
-        "height": 780,
-        "minWidth": 900,
-        "minHeight": 620,
+        "title": "Traductor de Documentos - Inglés a Español (v1.0.0)",
+        "width": 1240,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
         "resizable": true,
         "fullscreen": false,
         "center": true

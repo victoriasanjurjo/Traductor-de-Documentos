@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    traducir_textos_lib::run();
+    traductor_documentos_lib::run();
 }

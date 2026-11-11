@@ -1,16 +1,20 @@
 {
-  "app_name": "Traducir textos inglés a español",
+  "app_name": "Traductor de Documentos - Inglés a Español",
   "developer": "Victoria Sanjurjo",
   "publisher_id": "CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B",
   "version": "1.0.0",
-  "max_characters": 20000,
   "translation_direction": {
     "source_lang": "en",
     "target_lang": "es",
     "unidirectional": true
   },
+  "supported_formats": [
+    ".pdf"
+  ],
   "offline_engine": {
     "primary": "embedded_rust_linguistic_and_onnx_en_es",
-    "model_id": "Xenova/opus-mt-en-es"
+    "model_id": "Xenova/opus-mt-en-es",
+    "preserve_formatting": true,
+    "pdf_mode": "digital_selectable_text"
   }
 }

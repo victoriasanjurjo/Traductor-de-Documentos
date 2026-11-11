@@ -1,45 +1,47 @@
 /**
- * Traducir textos inglés a español (v1.0.0)
+ * Traductor de Documentos - Inglés a Español (v1.0.0)
  * Desarrolladora: Victoria Sanjurjo (CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B)
+ * Especializado en Documentos PDF Digitales (.pdf)
  * Frontend Controller (HTML5 + CSS3 + JS ESNext) conectado a Rust + Tauri v2
- * Límite máximo estricto: 20.000 caracteres
  */
 
 (function () {
   "use strict";
 
-  const MAX_CHARS = 20000;
-
-  // Referencia al puente IPC de Tauri v2
   const invoke =
     window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke
       ? window.__TAURI__.core.invoke
       : null;
 
+  let currentDocument = null;
+  let isSyncingScroll = false;
   let onnxTranslatorPipeline = null;
-  let debounceTimer = null;
 
-  // Elementos del DOM
-  const btnTranslateNow = document.getElementById("btnTranslateNow");
-  const btnPasteText = document.getElementById("btnPasteText");
-  const btnSampleText = document.getElementById("btnSampleText");
-  const btnClearText = document.getElementById("btnClearText");
-  const btnCopyTranslation = document.getElementById("btnCopyTranslation");
+  const btnOpenPdf = document.getElementById("btnOpenPdf");
+  const btnSamplePdf = document.getElementById("btnSamplePdf");
+  const btnExportPdf = document.getElementById("btnExportPdf");
   const btnNeuralEngine = document.getElementById("btnNeuralEngine");
   const btnAbout = document.getElementById("btnAbout");
   const btnRunOnnxModel = document.getElementById("btnRunOnnxModel");
 
-  const chkAutoTranslate = document.getElementById("chkAutoTranslate");
+  const chkSyncScroll = document.getElementById("chkSyncScroll");
   const statusText = document.getElementById("statusText");
-  const charProgress = document.getElementById("charProgress");
-  const charCounterBadge = document.getElementById("charCounterBadge");
-  const charRemainingHint = document.getElementById("charRemainingHint");
-  const targetStatsHint = document.getElementById("targetStatsHint");
-  const metricWords = document.getElementById("metricWords");
-  const metricParagraphs = document.getElementById("metricParagraphs");
+  const progressWrapper = document.getElementById("progressWrapper");
+  const translationProgress = document.getElementById("translationProgress");
 
-  const sourceTextarea = document.getElementById("sourceTextarea");
-  const targetTextarea = document.getElementById("targetTextarea");
+  const docMetrics = document.getElementById("docMetrics");
+  const metricFormat = document.getElementById("metricFormat");
+  const metricPages = document.getElementById("metricPages");
+  const metricSegments = document.getElementById("metricSegments");
+  const metricWords = document.getElementById("metricWords");
+
+  const emptyState = document.getElementById("emptyState");
+  const hiddenFileInput = document.getElementById("hiddenFileInput");
+  const splitPreview = document.getElementById("splitPreview");
+  const sourcePaneTitle = document.getElementById("sourcePaneTitle");
+  const targetPaneTitle = document.getElementById("targetPaneTitle");
+  const sourceSheet = document.getElementById("sourceSheet");
+  const targetSheet = document.getElementById("targetSheet");
 
   const dialogEngine = document.getElementById("dialogEngine");
   const dialogAbout = document.getElementById("dialogAbout");
@@ -86,176 +88,214 @@
   }
 
   // =========================================================================
-  // 2. Control Estricto del Límite de 20.000 Caracteres y Métricas
+  // 2. Utilidades de Estado y Barra de Progreso (<progress>)
   // =========================================================================
-  function enforceMaxCharsAndMetrics() {
-    let rawText = sourceTextarea.value;
-    // Contar code points reales (compatible con Unicode)
-    const charsArray = Array.from(rawText);
-    let wasTruncated = false;
-
-    if (charsArray.length > MAX_CHARS) {
-      rawText = charsArray.slice(0, MAX_CHARS).join("");
-      sourceTextarea.value = rawText;
-      wasTruncated = true;
+  function setStatus(message, progressMode = "hidden", progressValue = 0) {
+    statusText.textContent = message;
+    if (progressMode === "hidden") {
+      progressWrapper.hidden = true;
+    } else if (progressMode === "indeterminate") {
+      progressWrapper.hidden = false;
+      translationProgress.removeAttribute("value");
+    } else if (progressMode === "determinate") {
+      progressWrapper.hidden = false;
+      translationProgress.value = progressValue;
     }
-
-    const currentLen = wasTruncated ? MAX_CHARS : charsArray.length;
-    const remaining = MAX_CHARS - currentLen;
-
-    const formattedCurrent = currentLen.toLocaleString("es-ES");
-    const formattedMax = MAX_CHARS.toLocaleString("es-ES");
-    const formattedRemaining = remaining.toLocaleString("es-ES");
-
-    charCounterBadge.textContent = `${formattedCurrent} / ${formattedMax} caracteres`;
-    charRemainingHint.textContent = `${formattedRemaining} caracteres disponibles`;
-    charProgress.value = currentLen;
-
-    charProgress.classList.remove("limit-near", "limit-reached");
-    charCounterBadge.classList.remove("limit-danger");
-
-    if (currentLen >= MAX_CHARS) {
-      charProgress.classList.add("limit-reached");
-      charCounterBadge.classList.add("limit-danger");
-    } else if (currentLen >= MAX_CHARS * 0.85) {
-      charProgress.classList.add("limit-near");
-    }
-
-    const trimmed = rawText.trim();
-    const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
-    const paraCount = trimmed
-      ? rawText.split(/\r?\n/).filter((l) => l.trim().length > 0).length
-      : 0;
-
-    metricWords.textContent = wordCount.toLocaleString("es-ES");
-    metricParagraphs.textContent = paraCount.toLocaleString("es-ES");
-
-    if (wasTruncated) {
-      statusText.textContent =
-        "Aviso: Se ha alcanzado el límite máximo de 20.000 caracteres. El texto excedente fue recortado.";
-    }
-
-    return rawText;
   }
 
   // =========================================================================
-  // 3. Ejecución de la Traducción (Inglés -> Español)
+  // 3. Carga y Traducción de Documentos PDF (.pdf) vía Tauri Backend
   // =========================================================================
-  async function executeTranslation() {
-    const sourceText = enforceMaxCharsAndMetrics();
-
-    if (!sourceText.trim()) {
-      targetTextarea.value = "";
-      targetStatsHint.textContent = "0 caracteres · 0 palabras";
-      btnCopyTranslation.disabled = true;
-      statusText.textContent =
-        "Listo. Escriba o pegue un texto en inglés (máximo 20.000 caracteres) para traducirlo al español.";
+  async function handleSelectPdf() {
+    if (!invoke) {
+      hiddenFileInput.click();
       return;
     }
 
     try {
+      const selectedPath = await invoke("select_pdf_dialog");
+      if (!selectedPath) return;
+      await processPdfByPath(selectedPath);
+    } catch (err) {
+      setStatus(`Error al seleccionar documento PDF: ${err}`, "hidden");
+    }
+  }
+
+  async function processPdfByPath(filePath) {
+    try {
+      setStatus(`Analizando páginas del PDF y traduciendo de Inglés a Español...`, "indeterminate");
+      const docData = await invoke("load_and_translate_pdf", { filePath });
+      renderLoadedDocument(docData);
+
       if (onnxTranslatorPipeline) {
-        statusText.textContent = "Traduciendo texto con red neuronal Opus-MT (Inglés → Español)...";
-        const paragraphs = sourceText.split("\n");
-        const translatedParagraphs = [];
-        for (const p of paragraphs) {
-          if (!p.trim()) {
-            translatedParagraphs.push(p);
-          } else {
-            const out = await onnxTranslatorPipeline(p);
-            if (Array.isArray(out) && out[0] && out[0].translation_text) {
-              translatedParagraphs.push(out[0].translation_text);
-            } else {
-              translatedParagraphs.push(p);
-            }
-          }
-        }
-        const finalEs = translatedParagraphs.join("\n");
-        updateTargetOutput(finalEs);
-        statusText.textContent = "Traducción neuronal completada (Inglés → Español).";
-        return;
-      }
-
-      if (invoke) {
-        const response = await invoke("translate_text", { text: sourceText });
-        updateTargetOutput(response.translated_text);
-        statusText.textContent = `Texto traducido de Inglés a Español (${response.source_char_count.toLocaleString(
-          "es-ES"
-        )} / 20.000 caracteres).`;
-      }
-    } catch (err) {
-      statusText.textContent = `Error en la traducción: ${err}`;
-    }
-  }
-
-  function updateTargetOutput(translatedText) {
-    targetTextarea.value = translatedText;
-    const tChars = Array.from(translatedText).length;
-    const tWords = translatedText.trim()
-      ? translatedText.trim().split(/\s+/).length
-      : 0;
-    targetStatsHint.textContent = `${tChars.toLocaleString(
-      "es-ES"
-    )} caracteres · ${tWords.toLocaleString("es-ES")} palabras`;
-    btnCopyTranslation.disabled = tChars === 0;
-  }
-
-  // =========================================================================
-  // 4. Acciones de Barra de Herramientas (Pegar, Ejemplo, Limpiar, Copiar)
-  // =========================================================================
-  async function handlePasteFromClipboard() {
-    try {
-      const clipText = await navigator.clipboard.readText();
-      if (!clipText) return;
-      sourceTextarea.value = clipText;
-      await executeTranslation();
-    } catch (err) {
-      statusText.textContent =
-        "Use Ctrl+V directamente dentro del cuadro de texto en inglés para pegar.";
-      sourceTextarea.focus();
-    }
-  }
-
-  async function handleLoadSampleText() {
-    try {
-      if (invoke) {
-        const sample = await invoke("get_sample_english_text");
-        sourceTextarea.value = sample;
+        await refineSegmentsWithOnnx();
       } else {
-        sourceTextarea.value =
-          "EXECUTIVE SUMMARY\n\nArtificial intelligence and machine learning models improve the translation performance in real time.";
+        setStatus(
+          `Traducción de PDF completada (${docData.page_count} págs., ${docData.segments.length} bloques procesados de Inglés a Español). Lista para vista previa y exportación.`,
+          "hidden"
+        );
       }
-      await executeTranslation();
     } catch (err) {
-      statusText.textContent = `Error cargando texto de ejemplo: ${err}`;
+      setStatus(`Error procesando el documento PDF: ${err}`, "hidden");
     }
   }
 
-  function handleClearText() {
-    sourceTextarea.value = "";
-    targetTextarea.value = "";
-    enforceMaxCharsAndMetrics();
-    targetStatsHint.textContent = "0 caracteres · 0 palabras";
-    btnCopyTranslation.disabled = true;
-    statusText.textContent = "Campos limpiados. Listo para traducir (máx. 20.000 caracteres).";
-    sourceTextarea.focus();
+  async function processDroppedPdf(file) {
+    if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (ext !== "pdf") {
+      setStatus(
+        "Formato no soportado en v1.0.0. Por favor seleccione o arrastre únicamente un documento PDF (.pdf).",
+        "hidden"
+      );
+      return;
+    }
+
+    try {
+      setStatus(`Cargando "${file.name}" y traduciendo de Inglés a Español...`, "indeterminate");
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = Array.from(new Uint8Array(arrayBuffer));
+      const docData = await invoke("load_and_translate_pdf_bytes", {
+        fileName: file.name,
+        bytes: uint8Array,
+      });
+      renderLoadedDocument(docData);
+      if (onnxTranslatorPipeline) {
+        await refineSegmentsWithOnnx();
+      } else {
+        setStatus(
+          `Documento PDF "${docData.file_name}" traducido con éxito (${docData.segments.length} bloques).`,
+          "hidden"
+        );
+      }
+    } catch (err) {
+      setStatus(`Error procesando el archivo PDF arrastrado: ${err}`, "hidden");
+    }
   }
 
-  async function handleCopyTranslation() {
-    const text = targetTextarea.value;
-    if (!text) return;
+  async function handleLoadSamplePdf() {
+    if (!invoke) return;
     try {
-      await navigator.clipboard.writeText(text);
-      statusText.textContent = "¡Traducción en español copiada al portapapeles!";
+      setStatus(
+        `Generando y traduciendo documento PDF de ejemplo en Inglés → Español...`,
+        "indeterminate"
+      );
+      const docData = await invoke("generate_sample_pdf");
+      renderLoadedDocument(docData);
+      if (onnxTranslatorPipeline) {
+        await refineSegmentsWithOnnx();
+      } else {
+        setStatus(
+          `Documento PDF de ejemplo cargado y traducido (${docData.page_count} páginas, ${docData.segments.length} bloques). Puede editar cualquier párrafo o exportarlo a PDF directamente.`,
+          "hidden"
+        );
+      }
     } catch (err) {
-      targetTextarea.select();
-      document.execCommand("copy");
-      statusText.textContent = "¡Traducción en español copiada al portapapeles!";
+      setStatus(`Error cargando documento PDF de ejemplo: ${err}`, "hidden");
     }
   }
 
   // =========================================================================
-  // 5. Motor Neuronal ONNX Opcional (MarianMT Xenova/opus-mt-en-es)
+  // 4. Renderizado de Vista Previa Lado a Lado con Preservación Jerárquica
+  // =========================================================================
+  function renderLoadedDocument(docData) {
+    currentDocument = docData;
+
+    metricFormat.textContent = "PDF";
+    metricPages.textContent = docData.page_count;
+    metricSegments.textContent = docData.segments.length;
+    metricWords.textContent = docData.word_count;
+    docMetrics.hidden = false;
+
+    sourcePaneTitle.textContent = docData.file_name;
+    const stem = docData.file_name.replace(/\.pdf$/i, "");
+    targetPaneTitle.textContent = `${stem}_ES.pdf`;
+
+    sourceSheet.innerHTML = "";
+    targetSheet.innerHTML = "";
+
+    let lastPage = 0;
+
+    docData.segments.forEach((seg, idx) => {
+      if (seg.page !== lastPage) {
+        lastPage = seg.page;
+        const srcDivider = document.createElement("div");
+        srcDivider.className = "page-divider";
+        srcDivider.textContent = `Página ${seg.page}`;
+        sourceSheet.appendChild(srcDivider);
+
+        const tgtDivider = document.createElement("div");
+        tgtDivider.className = "page-divider";
+        tgtDivider.textContent = `Página ${seg.page}`;
+        targetSheet.appendChild(tgtDivider);
+      }
+
+      const srcBlock = document.createElement("article");
+      srcBlock.className = `doc-block kind-${seg.kind}`;
+      srcBlock.dataset.segmentIndex = String(idx);
+      srcBlock.textContent = seg.source_text;
+
+      const tgtBlock = document.createElement("article");
+      tgtBlock.className = `doc-block kind-${seg.kind} editable-segment`;
+      tgtBlock.dataset.segmentIndex = String(idx);
+      tgtBlock.contentEditable = "true";
+      tgtBlock.spellcheck = true;
+      tgtBlock.setAttribute("role", "textbox");
+      tgtBlock.setAttribute("aria-label", `Traducción del bloque ${idx + 1}`);
+      tgtBlock.textContent = seg.translated_text;
+
+      const highlightPair = (active) => {
+        srcBlock.classList.toggle("highlighted", active);
+        tgtBlock.classList.toggle("highlighted", active);
+      };
+
+      srcBlock.addEventListener("mouseenter", () => highlightPair(true));
+      srcBlock.addEventListener("mouseleave", () => highlightPair(false));
+      tgtBlock.addEventListener("mouseenter", () => highlightPair(true));
+      tgtBlock.addEventListener("mouseleave", () => highlightPair(false));
+      tgtBlock.addEventListener("focus", () => highlightPair(true));
+      tgtBlock.addEventListener("blur", () => highlightPair(false));
+
+      tgtBlock.addEventListener("input", () => {
+        if (currentDocument && currentDocument.segments[idx]) {
+          currentDocument.segments[idx].translated_text = tgtBlock.innerText;
+        }
+      });
+
+      sourceSheet.appendChild(srcBlock);
+      targetSheet.appendChild(tgtBlock);
+    });
+
+    emptyState.hidden = true;
+    splitPreview.hidden = false;
+    btnExportPdf.disabled = false;
+  }
+
+  // =========================================================================
+  // 5. Exportación del Documento PDF Traducido (.pdf)
+  // =========================================================================
+  async function handleExportPdf() {
+    if (!currentDocument || !invoke) return;
+
+    try {
+      setStatus(`Maquetando y exportando documento PDF traducido al Español...`, "indeterminate");
+      const savedPath = await invoke("export_translated_pdf_dialog", {
+        sourcePath: currentDocument.file_path,
+        segments: currentDocument.segments,
+      });
+
+      if (savedPath) {
+        setStatus(`Documento PDF exportado exitosamente en: ${savedPath}`, "hidden");
+      } else {
+        setStatus("Exportación cancelada por el usuario.", "hidden");
+      }
+    } catch (err) {
+      setStatus(`Error al exportar el documento PDF: ${err}`, "hidden");
+    }
+  }
+
+  // =========================================================================
+  // 6. Motor Neuronal ONNX Opcional (MarianMT Xenova/opus-mt-en-es)
   // =========================================================================
   async function handleRunOnnxModel() {
     try {
@@ -293,8 +333,13 @@
         engineLabel.textContent = "Motor Neuronal Opus-MT Activo";
       }
 
-      dialogEngine.close();
-      await executeTranslation();
+      if (currentDocument) {
+        dialogEngine.close();
+        await refineSegmentsWithOnnx();
+      } else {
+        onnxProgressNote.textContent =
+          "¡Modelo Opus-MT listo! Cargue cualquier documento .pdf para traducirlo con la red neuronal.";
+      }
     } catch (err) {
       onnxProgressNote.textContent =
         "Nota: Sin acceso a red para la descarga inicial de pesos ONNX; el Motor Lingüístico Offline Nativo en Rust sigue activo al 100%.";
@@ -303,26 +348,102 @@
     }
   }
 
-  // =========================================================================
-  // 6. Eventos de Entrada y Sincronización de Scroll
-  // =========================================================================
-  sourceTextarea.addEventListener("input", () => {
-    enforceMaxCharsAndMetrics();
-    if (chkAutoTranslate.checked) {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        executeTranslation();
-      }, 120);
+  async function refineSegmentsWithOnnx() {
+    if (!onnxTranslatorPipeline || !currentDocument) return;
+    const total = currentDocument.segments.length;
+    for (let i = 0; i < total; i++) {
+      const seg = currentDocument.segments[i];
+      const pct = Math.round(((i + 1) / total) * 100);
+      setStatus(
+        `Traduciendo PDF con red neuronal Opus-MT (en-es): bloque ${i + 1} de ${total} (${pct}%)...`,
+        "determinate",
+        pct
+      );
+      const out = await onnxTranslatorPipeline(seg.source_text);
+      if (Array.isArray(out) && out[0] && out[0].translation_text) {
+        seg.translated_text = out[0].translation_text;
+        const domNode = targetSheet.querySelector(`[data-segment-index="${i}"]`);
+        if (domNode) {
+          domNode.textContent = seg.translated_text;
+        }
+      }
     }
-  });
+    setStatus(
+      `Traducción neuronal Opus-MT del documento PDF completada (${total} bloques). Lista para exportar.`,
+      "hidden"
+    );
+  }
 
-  btnTranslateNow.addEventListener("click", executeTranslation);
-  btnPasteText.addEventListener("click", handlePasteFromClipboard);
-  btnSampleText.addEventListener("click", handleLoadSampleText);
-  btnClearText.addEventListener("click", handleClearText);
-  btnCopyTranslation.addEventListener("click", handleCopyTranslation);
+  // =========================================================================
+  // 7. Sincronización de Scroll Lado a Lado y Drag & Drop
+  // =========================================================================
+  function setupScrollSync() {
+    sourceSheet.addEventListener("scroll", () => {
+      if (!chkSyncScroll.checked || isSyncingScroll) return;
+      isSyncingScroll = true;
+      const ratio =
+        sourceSheet.scrollTop /
+        Math.max(1, sourceSheet.scrollHeight - sourceSheet.clientHeight);
+      targetSheet.scrollTop =
+        ratio * (targetSheet.scrollHeight - targetSheet.clientHeight);
+      window.requestAnimationFrame(() => {
+        isSyncingScroll = false;
+      });
+    });
+
+    targetSheet.addEventListener("scroll", () => {
+      if (!chkSyncScroll.checked || isSyncingScroll) return;
+      isSyncingScroll = true;
+      const ratio =
+        targetSheet.scrollTop /
+        Math.max(1, targetSheet.scrollHeight - targetSheet.clientHeight);
+      sourceSheet.scrollTop =
+        ratio * (sourceSheet.scrollHeight - sourceSheet.clientHeight);
+      window.requestAnimationFrame(() => {
+        isSyncingScroll = false;
+      });
+    });
+  }
+
+  function setupDragAndDrop() {
+    emptyState.addEventListener("click", handleSelectPdf);
+    emptyState.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleSelectPdf();
+      }
+    });
+
+    hiddenFileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        processDroppedPdf(e.target.files[0]);
+      }
+    });
+
+    window.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      emptyState.classList.add("drag-over");
+    });
+
+    window.addEventListener("dragleave", () => {
+      emptyState.classList.remove("drag-over");
+    });
+
+    window.addEventListener("drop", (e) => {
+      e.preventDefault();
+      emptyState.classList.remove("drag-over");
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        processDroppedPdf(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  btnOpenPdf.addEventListener("click", handleSelectPdf);
+  btnSamplePdf.addEventListener("click", handleLoadSamplePdf);
+  btnExportPdf.addEventListener("click", handleExportPdf);
   btnRunOnnxModel.addEventListener("click", handleRunOnnxModel);
 
   setupDialogs();
-  enforceMaxCharsAndMetrics();
+  setupScrollSync();
+  setupDragAndDrop();
 })();

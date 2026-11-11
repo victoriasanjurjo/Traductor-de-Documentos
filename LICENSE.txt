@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Victoria Sanjurjo - Traducir textos inglés a español
+Copyright (c) 2026 Victoria Sanjurjo - Traductor de Documentos - Inglés a Español
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,9 +1,9 @@
-﻿# Script de Empaquetado y Firma Digital MSIX - Traducir textos inglés a español (v1.0.0)
+# Script de Empaquetado y Firma Digital MSIX - Traductor de Documentos - Inglés a Español (v1.0.0)
 # Desarrolladora: Victoria Sanjurjo (CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B)
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$ReleaseExe  = Join-Path $ProjectRoot "src-tauri\target\release\traducir-textos-ingles-a-espanol.exe"
+$ReleaseExe  = Join-Path $ProjectRoot "src-tauri\target\release\traductor-documentos-en-es.exe"
 $MsixDir     = Join-Path $ProjectRoot "packaging\msix"
 $LayoutDir   = Join-Path $MsixDir "layout"
 $OutputsDir  = Join-Path $ProjectRoot "outputs"
@@ -18,7 +18,7 @@ if (Test-Path $LayoutDir) {
 New-Item -ItemType Directory -Force -Path $LayoutDir, (Join-Path $LayoutDir "Assets"), $OutputsDir | Out-Null
 
 # 1. Copiar ejecutable, manifiesto y recursos visuales al layout MSIX
-Copy-Item -Force $ReleaseExe (Join-Path $LayoutDir "traducir-textos-ingles-a-espanol.exe")
+Copy-Item -Force $ReleaseExe (Join-Path $LayoutDir "traductor-documentos-en-es.exe")
 Copy-Item -Force (Join-Path $MsixDir "AppxManifest.xml") (Join-Path $LayoutDir "AppxManifest.xml")
 Copy-Item -Force (Join-Path $MsixDir "Assets\*.png") (Join-Path $LayoutDir "Assets\")
 
@@ -41,7 +41,7 @@ Write-Host "Usando MakeAppx: $MakeAppx"
 Write-Host "Usando SignTool: $SignTool"
 
 # 3. Empaquetar el directorio layout en un archivo .msix
-$MsixFile = Join-Path $OutputsDir "TraducirTextosInglesAEspanol_1.0.0.0_x64.msix"
+$MsixFile = Join-Path $OutputsDir "TraductorDeDocumentos_InglesAEspanol_1.0.0.0_x64.msix"
 if (Test-Path $MsixFile) { Remove-Item -Force $MsixFile }
 
 & $MakeAppx pack /d $LayoutDir /p $MsixFile /nv /o
@@ -58,7 +58,7 @@ if (-not $Cert) {
         -Type Custom `
         -Subject $Subject `
         -KeyUsage DigitalSignature `
-        -FriendlyName "Victoria Sanjurjo - Traducir textos inglés a español MSIX Cert" `
+        -FriendlyName "Victoria Sanjurjo - Traductor de Documentos MSIX Cert" `
         -CertStoreLocation "Cert:\CurrentUser\My" `
         -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 }
@@ -78,7 +78,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Copiar también una referencia directa en la raíz del proyecto para acceso inmediato
-$RootMsixCopy = Join-Path $ProjectRoot "TraducirTextosInglesAEspanol_1.0.0.0_x64.msix"
+$RootMsixCopy = Join-Path $ProjectRoot "TraductorDeDocumentos_InglesAEspanol_1.0.0.0_x64.msix"
 Copy-Item -Force $MsixFile $RootMsixCopy
 
 Write-Host "================================================================="

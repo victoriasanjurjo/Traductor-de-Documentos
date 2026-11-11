@@ -6,16 +6,16 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="VictoriaSanjurjo.TraducirTextosInglesAEspanol"
+    Name="VictoriaSanjurjo.TraductorDocumentosEnEs"
     Publisher="CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Traducir textos inglés a español</DisplayName>
+    <DisplayName>Traductor de Documentos - Inglés a Español</DisplayName>
     <PublisherDisplayName>Victoria Sanjurjo</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
-    <Description>Traducir textos inglés a español (v1.0.0). Aplicación nativa en Rust + Tauri v2 para traducir textos de Inglés a Español (hasta 20.000 caracteres) de forma 100% offline.</Description>
+    <Description>Traductor de Documentos - Inglés a Español (v1.0.0). Aplicación nativa en Rust + Tauri v2 para traducir documentos PDF (.pdf) de Inglés a Español de forma 100% offline conservando su estructura por páginas.</Description>
   </Properties>
 
   <Dependencies>
@@ -28,12 +28,12 @@
 
   <Applications>
     <Application
-      Id="TraducirTextosEnEs"
-      Executable="traducir-textos-ingles-a-espanol.exe"
+      Id="TraductorDocumentosEnEs"
+      Executable="traductor-documentos-en-es.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="Traducir textos inglés a español"
-        Description="Traduce textos de Inglés a Español de hasta 20.000 caracteres de forma 100% offline."
+        DisplayName="Traductor de Documentos - Inglés a Español"
+        Description="Traduce documentos PDF (.pdf) de Inglés a Español de forma 100% offline con vista previa lado a lado."
         BackgroundColor="#1E3A8A"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
