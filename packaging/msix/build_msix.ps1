@@ -1,4 +1,4 @@
-# Script de Empaquetado y Firma Digital MSIX - Traductor de Documentos - Inglés a Español (v1.0.0)
+﻿# Script de Empaquetado y Firma Digital MSIX - Traductor de Documentos - Inglés a Español (v1.0.0)
 # Desarrolladora: Victoria Sanjurjo (CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B)
 $ErrorActionPreference = "Stop"
 
@@ -77,9 +77,13 @@ if ($LASTEXITCODE -ne 0) {
     throw "Error al firmar el paquete MSIX con signtool.exe (código $LASTEXITCODE)"
 }
 
-# Copiar también una referencia directa en la raíz del proyecto para acceso inmediato
+# Copiar también el paquete MSIX y el ejecutable .exe standalone en outputs/ y en la raíz del proyecto para acceso inmediato
 $RootMsixCopy = Join-Path $ProjectRoot "TraductorDeDocumentos_InglesAEspanol_1.0.0.0_x64.msix"
+$StandaloneExeOut  = Join-Path $OutputsDir "Traductor de Documentos - Ingles a Espanol.exe"
+$StandaloneExeRoot = Join-Path $ProjectRoot "Traductor de Documentos - Ingles a Espanol.exe"
 Copy-Item -Force $MsixFile $RootMsixCopy
+Copy-Item -Force $ReleaseExe $StandaloneExeOut
+Copy-Item -Force $ReleaseExe $StandaloneExeRoot
 
 Write-Host "================================================================="
 Write-Host "PAQUETE MSIX CREADO Y FIRMADO EXITOSAMENTE:"
