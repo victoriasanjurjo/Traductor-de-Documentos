@@ -1,4 +1,4 @@
-﻿# Script de Empaquetado y Firma Digital MSIX - Traductor de Documentos - Inglés a Español (v1.0.0)
+# Script de Empaquetado y Firma Digital MSIX - Traductor de Documentos - Inglés a Español (v1.0.0)
 # Desarrolladora: Victoria Sanjurjo (CN=CF220D35-0C1C-408C-BCB2-E85AA65BC95B)
 $ErrorActionPreference = "Stop"
 
